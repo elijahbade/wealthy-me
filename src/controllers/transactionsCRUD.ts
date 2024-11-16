@@ -2,19 +2,37 @@ import { Request, Response } from 'express';
 import { Model } from 'mongoose';
 import { AuthRequest } from '../types/express';
 
-// Generic create function
-export const createEntry = (model: Model<any>) => async (req: AuthRequest, res: Response) => {
+// Generic create transaction function
+export const addEntry = (model: Model<any>) => async (req: AuthRequest, res: Response) => {
   try {
-    const entry = new model({
-      userId: req.user?.userId,
-      ...req.body,
+    const { userId } = req.user!;
+    const { month, year, amount, description, date } = req.body;
+
+    // Validate input
+    if (!month || !year || !amount) {
+      res.status(400).json({ error: "Month, year, and amount are required" });
+      return;
+    }
+
+    // Save expense
+    const transaction = new model({
+      userId,
+      month,
+      year,
+      amount,
+      description,
+      date
     });
-    await entry.save();
-    res.status(201).json(entry);
+
+
+    await transaction.save();
+    res.status(201).json({ message: "Transaction added successfully", transaction });
   } catch (error) {
-    res.status(500).json({ error: 'Error creating entry' });
+    console.error(error);
+    res.status(500).json({ error: "Error adding expense" });
   }
 };
+
 
 // Generic get all entries function
 export const getEntries = (model: Model<any>) => async (req: AuthRequest, res: Response) => {

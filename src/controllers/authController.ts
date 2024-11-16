@@ -2,10 +2,9 @@ import { Request, RequestHandler, Response } from "express";
 import bcrypt, {genSalt} from 'bcrypt'; 
 import jwt from 'jsonwebtoken';
 import User from "../models/User";
-import { AuthRequest } from "../types/express";
+import  {AuthRequest}  from "../types/express";
 
-
-export const registerUser = async (req: Request, res: Response) => {
+export const registerUser = async (req: AuthRequest, res: Response) => {
   try {
     
     const {username, email, password} = req.body; 

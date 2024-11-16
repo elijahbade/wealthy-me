@@ -1,3 +1,6 @@
+import mongoose from "mongoose";
+import { ObjectIdOrString } from "./types";
+
 export interface IUser extends Document {
     userId: string;
     username: string;
@@ -10,31 +13,39 @@ export interface IUser extends Document {
     
 }
 
-
 export interface ITransaction extends Document {
-    userId: string, 
-    amount: number, 
-    category: string, 
-    description: string, 
-    date: Date;
+userId:   string;
+
+    month: string;
+    year: number; 
+    amount: number; 
+    description: string;
+    date: string; 
 }
 
-interface ICategoryBudget {
-    [category: string]: number;  // Assuming the categoryBudgets are key-value pairs
+// export interface ITransaction extends Document {
+//     userId: ObjectIdOrString, 
+//     amount: number, 
+//     category: string, 
+//     description: string, 
+//     date: Date;
+// }
+
+// export interface ICategoryBudget {
+//     [category: string]: number;  // Assuming the categoryBudgets are key-value pairs
+//   }
+
+  export interface IBudget extends Document {
+    userId: string;
+    month: string; // Example: 'January'
+    year: number; // Example: 2024
+    monthlyLimit: number; // The budget set for this month
+    spent: number; // The amount spent for the month
   }
-
-export interface IBudget extends Document {
-    userId: string, 
-    category: string; 
-    categorize: string;
-    monthlyLimit: number, 
-    categoryLimits: {category: string, limit: number}[];
-    categoryBudgets: ICategoryBudget;
-    monthlyBudget: number;
-}
+  
 
 
-export interface IAchievement extends Document {
+export interface IRank extends Document {
     userId: string;
     title: string; 
     description: string, 

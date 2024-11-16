@@ -1,93 +1,99 @@
 import { Request, Response } from 'express';
 import { Income } from '../models/Income';
 import {Expense} from '../models/Expense';
-import Budget from '../models/Budget';
-import Achievement from '../models/Achievment';
+import {Budget} from '../models/Budget';
+import Rank from '../models/Rank';
 import { ObjectId } from 'mongoose';
 import { AuthRequest } from '../types/express';
 import { Parser } from 'json2csv';  // To generate CSV from JSON
 import PDFDocument from 'pdfkit';  // To generate PDF
 
-// Function to fetch financial data for the user
-export const downloadAllData = async (req: AuthRequest, res: Response): Promise<void> => {
-    try {
-        const userId = req.user?.userId;  // Get user ID from the authenticated user (from JWT)
+import { parse } from "json2csv"; // Library for CSV generation
 
-        if (!userId) {
-            res.status(400).json({ error: 'User not authenticated' });
-            return;
-        }
 
-        // Fetch all data for the authenticated user
-        const incomes = await Income.find({ userId });
-        const expenses = await Expense.find({ userId });
-        const budgets = await Budget.find({ userId });
-        const achievements = await Achievement.find({ userId });
+export const downloadData = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { type } = req.query; // Query parameter to determine file type
+    const incomeData = await Income.find({});
+    const expenseData = await Expense.find({});
+    const rankData = await Rank.find({});
 
-        // Combine all the data into one object for easier management
-        const financialData = {
-            incomes,
-            expenses,
-            budgets,
-            achievements,
-        };
+    if (type === "pdf") {
+      // Generate PDF
+      const doc = new PDFDocument();
+      res.setHeader("Content-Disposition", "attachment; filename=data-export.pdf");
+      res.setHeader("Content-Type", "application/pdf");
+      doc.pipe(res);
 
-        // Check if the user has requested CSV or PDF format
-        const fileType = req.query.type?.toString().toLowerCase(); // 'csv' or 'pdf'
+      // Add title
+      doc.fontSize(20).text("Data Export Summary", { align: "center" }).moveDown();
 
-        if (fileType === 'csv') {
-            // Convert data into CSV format using json2csv
-            const json2csvParser = new Parser();
-            const csvData = json2csvParser.parse(financialData);
+      // Add Income Section
+      doc.fontSize(16).text("Incomes").moveDown(0.5);
+      if (incomeData.length > 0) {
+        incomeData.forEach((income) => {
+          doc.fontSize(12).text(
+            `Date: ${income.date}, Amount: ${income.amount}, Description: ${income.description}`
+          );
+        });
+      } else {
+        doc.fontSize(12).text("No income data available.");
+      }
+      doc.moveDown();
 
-            // Set the response header to indicate a downloadable file
-            res.header('Content-Type', 'text/csv');
-            res.attachment('financial_data.csv');
-            res.send(csvData);
-        } else if (fileType === 'pdf') {
-            // Create PDF document
-            const doc = new PDFDocument();
+      // Add Expense Section
+      doc.fontSize(16).text("Expenses").moveDown(0.5);
+      if (expenseData.length > 0) {
+        expenseData.forEach((expense) => {
+          doc.fontSize(12).text(
+            `Date: ${expense.date}, Amount: ${expense.amount}, Description: ${expense.description}`
+          );
+        });
+      } else {
+        doc.fontSize(12).text("No expense data available.");
+      }
+      doc.moveDown();
 
-            // Pipe the PDF output to the response
-            res.setHeader('Content-Type', 'application/pdf');
-            res.attachment('financial_data.pdf');
-            doc.pipe(res);
+      // Add Rank Section
+      doc.fontSize(16).text("Ranks").moveDown(0.5);
+      if (rankData.length > 0) {
+        rankData.forEach((rank) => {
+          doc.fontSize(12).text(
+            `Rank Name: ${rank.title}, Description: ${rank.description || "N/A"}`
+          );
+        });
+      } else {
+        doc.fontSize(12).text("No rank data available.");
+      }
+      doc.moveDown();
 
-            // Add title to the PDF
-            doc.fontSize(16).text('Financial Data', { align: 'center' });
+      // Finalize PDF
+      doc.end();
+    } else if (type === "csv") {
+      // Generate CSV
+      const csvFields = [
+        { label: "Type", value: (row: any) => row.type || "Income/Expense/Rank" },
+        { label: "Date", value: "date" },
+        { label: "Amount", value: "amount" },
+        { label: "Description", value: "description" },
+        { label: "Rank Name", value: "name" },
+      ];
 
-            // Incomes section
-            doc.moveDown().fontSize(12).text('Incomes:');
-            incomes.forEach((income) => {
-                doc.text(`Amount: ${income.amount}, Category: ${income.category}, Description: ${income.description}, Date: ${income.date}`);
-            });
+      const combinedData = [
+        ...incomeData.map((income) => ({ ...income.toObject(), type: "Income" })),
+        ...expenseData.map((expense) => ({ ...expense.toObject(), type: "Expense" })),
+        ...rankData.map((rank) => ({ ...rank.toObject(), type: "Rank" })),
+      ];
 
-            // Expenses section
-            doc.moveDown().fontSize(12).text('Expenses:');
-            expenses.forEach((expense) => {
-                doc.text(`Amount: ${expense.amount}, Category: ${expense.category}, Description: ${expense.description}, Date: ${expense.date}`);
-            });
-
-            // Budgets section
-            doc.moveDown().fontSize(12).text('Budgets:');
-            budgets.forEach((budget) => {
-                doc.text(`Category: ${budget.category}, Monthly Budget: ${budget.monthlyBudget}`);
-            });
-
-            // Achievements section
-            doc.moveDown().fontSize(12).text('Achievements:');
-            achievements.forEach((achievement) => {
-                doc.text(`Title: ${achievement.title}, Description: ${achievement.description}`);
-            });
-
-            // End the PDF document
-            doc.end();
-        } else {
-            res.status(400).json({ error: 'Invalid file type. Please request "csv" or "pdf".' });
-        }
-
-    } catch (error) {
-        console.error('Error downloading data:', error);
-        res.status(500).json({ error: 'Internal server error' });
+      const csv = parse(combinedData, { fields: csvFields });
+      res.setHeader("Content-Disposition", "attachment; filename=data-export.csv");
+      res.setHeader("Content-Type", "text/csv");
+      res.status(200).send(csv);
+    } else {
+      res.status(400).json({ error: "Invalid type. Use 'pdf' or 'csv'." });
     }
+  } catch (error) {
+    console.error("Error generating file:", error);
+    res.status(500).json({ error: "An error occurred while preparing the file" });
+  }
 };

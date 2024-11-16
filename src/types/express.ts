@@ -3,11 +3,12 @@
 
 import { Request } from "express";
 import mongoose, { Types } from "mongoose";
+import { ObjectIdOrString } from "../utils/types";
 
 export interface AuthRequest extends Request {
   user?: {
     _id: mongoose.Types.ObjectId; // For MongoDB ObjectId type
-    userId: string;
+    userId: ObjectIdOrString;
   };
 }
 

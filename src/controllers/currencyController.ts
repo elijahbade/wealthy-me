@@ -3,11 +3,11 @@ import axios from "axios"
 
 export const convertCurrency = async (req: Request, res: Response) => {
 
-    const {amount, from, to} = req.body
+    const {amount, fromCurrency, toCurrency} = req.body
 
 try {
-    const response = await axios.get(`https://api.exchangerate-api.com/v4/latest/${from}`)
-    const rate = response.data.rates[to]; 
+    const response = await axios.get(`https://api.exchangerate-api.com/v4/latest/${fromCurrency}`)
+    const rate = response.data.rates[toCurrency]; 
     const convertedAmount = amount * rate; 
     res.json({convertedAmount})
 
